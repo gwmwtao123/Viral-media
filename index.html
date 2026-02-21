@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>VIRAL MEDIA | Pro</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+
+    <style>
+        :root { 
+            --bg: #000; 
+            --surface: #121212; 
+            --accent: #ff8a00; 
+            --text: #fff; 
+            --dim: #777;
+            --radius: 12px;
+        }
+
+        * { box-sizing: border-box; outline: none; -webkit-tap-highlight-color: transparent; }
+        
+        body { 
+            background: var(--bg); 
+            color: var(--text); 
+            font-family: 'Plus Jakarta Sans', sans-serif; 
+            margin: 0; 
+            padding-bottom: 80px; 
+            overflow-x: hidden;
+        }
+
+        /* --- HEADER --- */
+        .header { 
+            background: rgba(0,0,0,0.8); 
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid #222; 
+            position: sticky; top:0; z-index: 1000; padding: 12px 16px; 
+        }
+        .header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .logo { font-weight: 800; font-size: 1.2rem; letter-spacing: -0.5px; }
+        .logo span { background: var(--accent); color: #000; padding: 2px 6px; border-radius: 4px; margin-left: 4px; }
+        
+        .search-bar { 
+            display: flex; background: #1a1a1a; border-radius: 12px; 
+            padding: 8px 16px; align-items: center; border: 1px solid #222;
+            margin-bottom: 10px;
+        }
+        .search-bar:focus-within { border-color: var(--accent); }
+        .search-bar input { background: transparent; border: none; color: #fff; width: 100%; margin-left: 10px; font-size: 0.9rem; }
+
+        /* AD SPACE STYLING */
+        .ad-container { display: flex; justify-content: center; margin: 10px 0; overflow: hidden; }
+
+        /* --- VIEWS --- */
+        .view { display: none; padding: 16px; opacity: 0; transform: translateY(10px); transition: all 0.4s ease; }
+        .view.active { display: block; opacity: 1; transform: translateY(0); }
+
+        /* --- VIDEO CARDS --- */
+        .video-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 16px; }
+        .v-card { background: transparent; cursor: pointer; transition: transform 0.2s; }
+        .v-card:active { transform: scale(0.96); }
+        
+        .v-thumb { 
+            width: 100%; aspect-ratio: 16/9; background-size: cover; background-position: center; 
+            position: relative; background-color: #1a1a1a; border-radius: var(--radius);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        }
+        .v-meta { padding: 10px 2px; }
+        .v-title { font-weight: 600; font-size: 0.9rem; line-height: 1.4; height: 40px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+        .v-info { font-size: 0.75rem; color: var(--dim); margin-top: 4px; }
+
+        /* --- SOCIAL CARD --- */
+        .social-card { background: var(--surface); padding: 25px; border-radius: 20px; margin-top: 30px; text-align: center; border: 1px solid #222; }
+        .social-links { display: flex; justify-content: center; gap: 25px; margin-top: 20px; flex-wrap: wrap; }
+        .social-links a { color: var(--text); font-size: 1.6rem; text-decoration: none; transition: transform 0.2s; }
+        .social-links a:active { transform: scale(0.8); color: var(--accent); }
+
+        /* --- PLAYER --- */
+        #player-ui { 
+            position: fixed; inset: 0; background: #000; z-index: 2000; 
+            display: none; flex-direction: column; 
+            animation: slideUp 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        
+        .close-btn { padding: 15px; font-weight: 600; color: var(--dim); display: flex; align-items: center; gap: 10px; cursor: pointer; }
+        .video-wrapper { width: 100%; aspect-ratio: 16/9; background: #000; }
+        video { width: 100%; height: 100%; }
+
+        /* --- NAVIGATION --- */
+        .nav { 
+            position: fixed; bottom: 0; width: 100%; height: 70px; 
+            background: rgba(10,10,10,0.95); backdrop-filter: blur(15px);
+            display: flex; justify-content: space-around; align-items: center; 
+            border-top: 1px solid #1a1a1a; z-index: 1000; 
+        }
+        .nav-item { color: var(--dim); text-align: center; font-size: 0.65rem; font-weight: 600; cursor: pointer; }
+        .nav-item i { font-size: 1.2rem; margin-bottom: 5px; }
+        .nav-item.active { color: var(--accent); }
+
+        #toast { position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%); background: #fff; color: #000; padding: 10px 20px; border-radius: 30px; font-size: 0.8rem; font-weight: 800; display: none; z-index: 3000; }
+        ::-webkit-scrollbar { display: none; }
+    </style>
+</head>
+<body>
+
+<div id="toast"></div>
+
+<div class="header">
+    <div class="header-top">
+        <div class="logo">VIRAL<span>MEDIA</span></div>
+        <div style="width:32px; height:32px; background:#222; border-radius:50%; display:flex; align-items:center; justify-content:center;">
+            <i class="fa-solid fa-user" style="font-size: 0.9rem; color:#555"></i>
+        </div>
+    </div>
+    <div class="search-bar">
+        <i class="fa-solid fa-magnifying-glass" style="color:#555; font-size: 0.9rem;"></i>
+        <input type="text" id="searchInput" placeholder="Search videos..." oninput="handleSearch()">
+    </div>
+
+    <div class="ad-container">
+        <script>
+            atOptions = { 'key' : '270943bbf4c1f5e9b2670c4263568ef5', 'format' : 'iframe', 'height' : 50, 'width' : 320, 'params' : {} };
+        </script>
+        <script src="https://www.highperformanceformat.com/270943bbf4c1f5e9b2670c4263568ef5/invoke.js"></script>
+    </div>
+</div>
+
+<div id="view-home" class="view active">
+    <div class="video-grid" id="grid-home"></div>
+</div>
+
+<div id="view-trending" class="view">
+    <h2 style="font-size: 1.2rem; margin-bottom: 20px;">Trending Now</h2>
+    <div class="video-grid" id="grid-trending"></div>
+</div>
+
+<div id="view-library" class="view">
+    <h2 style="font-size: 1.2rem; margin-bottom: 20px;">History</h2>
+    <div class="video-grid" id="grid-library"></div>
+
+    <div class="ad-container" style="margin: 30px 0;">
+        <script>
+            atOptions = { 'key' : '8dfdc9b3b0003bea0c36ca436b98bdbb', 'format' : 'iframe', 'height' : 300, 'width' : 160, 'params' : {} };
+        </script>
+        <script src="https://www.highperformanceformat.com/8dfdc9b3b0003bea0c36ca436b98bdbb/invoke.js"></script>
+    </div>
+
+    <div class="social-card" id="social-box" style="display:none;">
+        <div style="font-weight: 800; font-size: 0.8rem; color: var(--accent); letter-spacing: 1px;">STAY CONNECTED</div>
+        <div class="social-links" id="social-container"></div>
+    </div>
+</div>
+
+<div id="container-9008e0f5b3fe49bae2b3ad2a797b8172"></div>
+<script async="async" data-cfasync="false" src="https://pl28754108.effectivegatecpm.com/9008e0f5b3fe49bae2b3ad2a797b8172/invoke.js"></script>
+
+<div id="player-ui">
+    <div class="close-btn" onclick="closePlayer()">
+        <i class="fa-solid fa-chevron-down"></i> back
+    </div>
+    <div class="video-wrapper">
+        <video id="main-video" controls playsinline></video>
+    </div>
+    <div style="padding: 20px;">
+        <div id="p-title" style="font-weight: 800; font-size: 1.1rem; line-height: 1.4;"></div>
+        <div id="p-views" style="color: var(--dim); font-size: 0.8rem; margin-top: 8px;"></div>
+        
+        <div style="display:flex; gap:25px; margin-top:25px; border-top: 1px solid #111; padding-top:20px;">
+            <div onclick="this.style.color='var(--accent)'" style="display:flex; flex-direction:column; align-items:center; gap:5px; font-size:0.7rem; color:var(--dim);">
+                <i class="fa-solid fa-thumbs-up" style="font-size:1.2rem"></i> Like
+            </div>
+            <div onclick="copyLink()" style="display:flex; flex-direction:column; align-items:center; gap:5px; font-size:0.7rem; color:var(--dim);">
+                <i class="fa-solid fa-share" style="font-size:1.2rem"></i> Share
+            </div>
+        </div>
+    </div>
+</div>
+
+<nav class="nav">
+    <div class="nav-item active" onclick="switchView('home', this)"><i class="fa-solid fa-house"></i><br>Home</div>
+    <div class="nav-item" onclick="switchView('trending', this)"><i class="fa-solid fa-fire"></i><br>Trending</div>
+    <div class="nav-item" onclick="switchView('library', this)"><i class="fa-solid fa-bookmark"></i><br>Library</div>
+</nav>
+
+<script src="https://pl28754128.effectivegatecpm.com/e1/17/54/e1175411faa6623fbff2e8f0b51efb12.js"></script>
+<script src="https://pl28754136.effectivegatecpm.com/21/56/19/215619c510a6e668383d84af468ce624.js"></script>
+
+<script>
+    // --- FIREBASE CONFIG ---
+    const firebaseConfig = {
+        apiKey: "AIzaSyACds6Loqb7GGlvlC2BVPBn48tHJcohMK0",
+        authDomain: "admin-17c72.firebaseapp.com",
+        databaseURL: "https://admin-17c72-default-rtdb.asia-southeast1.firebasedatabase.app",
+        projectId: "admin-17c72",
+        appId: "1:17952546619:android:1760af0e0ce663a3b4211e"
+    };
+    
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+    
+    let allVideos = [];
+    let history = [];
+
+    db.ref("movies").on("value", snap => {
+        const data = snap.val();
+        if(!data) return;
+        allVideos = Object.values(data).reverse();
+        renderGrid('grid-home', allVideos);
+        renderGrid('grid-trending', [...allVideos].sort(() => Math.random() - 0.5));
+    });
+
+    db.ref("social_links").on("value", snap => {
+        const val = snap.val();
+        const container = document.getElementById('social-container');
+        const box = document.getElementById('social-box');
+        if(val) {
+            box.style.display = 'block';
+            let html = '';
+            const iconMap = { facebook: 'fa-facebook', youtube: 'fa-youtube', instagram: 'fa-instagram', telegram: 'fa-telegram', twitter: 'fa-x-twitter', tiktok: 'fa-tiktok' };
+            for (const [platform, url] of Object.entries(val)) {
+                if(url && iconMap[platform]) {
+                    html += `<a href="${url}" target="_blank"><i class="fa-brands ${iconMap[platform]}"></i></a>`;
+                }
+            }
+            container.innerHTML = html;
+        } else {
+            box.style.display = 'none';
+        }
+    });
+
+    function renderGrid(id, list) {
+        const container = document.getElementById(id);
+        if(!container) return;
+        container.innerHTML = list.map(m => `
+            <div class="v-card" onclick="openPlayer('${m.url}', '${m.title.replace(/'/g, "\\'")}', '${m.thumb || m.img}')">
+                <div class="v-thumb" style="background-image: url('${m.thumb || m.img}')"></div>
+                <div class="v-meta">
+                    <div class="v-title">${m.title}</div>
+                    <div class="v-info">${(Math.floor(Math.random()*100)+1)}K views • 2 days ago</div>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    function handleSearch() {
+        const q = document.getElementById('searchInput').value.toLowerCase();
+        const filtered = allVideos.filter(v => v.title.toLowerCase().includes(q));
+        renderGrid('grid-home', filtered);
+    }
+
+    function openPlayer(url, title, thumb) {
+        const video = document.getElementById('main-video');
+        document.getElementById('p-title').innerText = title;
+        document.getElementById('p-views').innerText = (Math.floor(Math.random()*400)+10) + "K views • Just now";
+        if(!history.find(x => x.url === url)) {
+            history.unshift({url, title, thumb});
+            renderGrid('grid-library', history);
+        }
+        document.getElementById('player-ui').style.display = 'flex';
+        video.src = url;
+        video.play();
+    }
+
+    function closePlayer() {
+        const v = document.getElementById('main-video');
+        v.pause();
+        document.getElementById('player-ui').style.display = 'none';
+    }
+
+    function switchView(view, el) {
+        document.querySelectorAll('.view').forEach(v => {
+            v.classList.remove('active');
+            v.style.display = 'none';
+        });
+        const activeView = document.getElementById('view-' + view);
+        activeView.style.display = 'block';
+        setTimeout(() => activeView.classList.add('active'), 10);
+        document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+        el.classList.add('active');
+        window.scrollTo({top: 0, behavior: 'smooth'});
+    }
+
+    function copyLink() {
+        const url = document.getElementById('main-video').src;
+        navigator.clipboard.writeText(url);
+        showToast("Link copied to clipboard");
+    }
+
+    function showToast(msg) {
+        const t = document.getElementById('toast');
+        t.innerText = msg; t.style.display = 'block';
+        setTimeout(() => t.style.display = 'none', 2500);
+    }
+</script>
+
+</body>
+</html>
